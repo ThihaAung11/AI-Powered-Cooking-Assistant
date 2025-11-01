@@ -1,4 +1,5 @@
 from datetime import timedelta
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import User, Role
@@ -45,7 +46,7 @@ def register_user(db: Session, payload: UserCreate) -> User:
 
 
 def authenticate_user(db: Session, user_data: str, password: str) -> Token:
-    user = db.query(User).filter(User.email == user_data or User.username == user_data).first()
+    user = db.query(User).filter(or_(User.email == user_data, User.username == user_data)).first()
     if not user or not verify_password(password, user.password):
         raise UnauthorizedException("Invalid email or password")
     

@@ -6,6 +6,8 @@ from ..database import get_db
 from ..schemas.user import UserCreate, UserOut
 from ..schemas.auth import LoginRequest, Token
 from ..services.auth_service import register_user, authenticate_user
+from ..core.security import get_password_hash
+
 
 router = APIRouter()
 

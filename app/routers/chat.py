@@ -1,23 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, Query
 
-from ..database import get_db
-from ..schemas.chat import ChatRequest, ChatResponse, ChatHistoryResponse, ChatHistoryItem
+from ..schemas.chat import ChatRequest, ChatResponse, ChatHistoryResponse
 from ..services.chat_service import chat_with_cooking_assistant, get_chat_history
-from ..deps import get_current_user
-from ..models import User
+from ..deps import CurrentUser, SessionDep
 
 router = APIRouter()
 
 
-@router.post("/message", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
 def send_message(
     payload: ChatRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SessionDep,
+    current_user: CurrentUser
 ):
     """
-    Send a message to the cooking assistant and get AI response
+    Send a message to the cooking assistant and get AI response.
+    
+    The AI assistant can:
+    - Recommend recipes based on your preferences
+    - Provide cooking guidance and step-by-step instructions
+    - Answer cooking-related questions
+    - Respond in your preferred language (English or Burmese)
     """
     try:
         result = chat_with_cooking_assistant(
@@ -34,12 +37,14 @@ def send_message(
 
 @router.get("/history", response_model=ChatHistoryResponse)
 def get_history(
-    limit: int = 20,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SessionDep,
+    current_user: CurrentUser,
+    limit: int = Query(20, ge=1, le=100, description="Number of messages to retrieve")
 ):
     """
-    Get chat history for the current user
+    Get chat history for the current user.
+    
+    Returns the most recent chat messages in chronological order.
     """
     messages = get_chat_history(
         user_id=current_user.id,

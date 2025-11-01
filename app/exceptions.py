@@ -6,10 +6,13 @@ from fastapi.responses import JSONResponse
 class AppException(Exception):
     status_code: int = 500
     message: str = "An error occurred"
+    headers: dict | None = None
 
-    def __init__(self, message: str | None = None):
+    def __init__(self, message: str | None = None, headers: dict | None = None):
         if message is not None:
             self.message = message
+        if headers is not None:
+            self.headers = headers
 
 
 class NotFoundException(AppException):
@@ -20,6 +23,17 @@ class NotFoundException(AppException):
 class UnauthorizedException(AppException):
     status_code = 401
     message = "Unauthorized"
+    
+    def __init__(self, message: str | None = None, headers: dict | None = None):
+        super().__init__(message, headers)
+        # Default OAuth2 header if not provided
+        if self.headers is None:
+            self.headers = {"WWW-Authenticate": "Bearer"}
+
+
+class BadRequestException(AppException):
+    status_code = 400
+    message = "Bad request"
 
 
 class ValidationException(AppException):
@@ -55,6 +69,15 @@ def register_exception_handlers(app):
 
     @app.exception_handler(UnauthorizedException)
     async def unauthorized_handler(request: Request, exc: UnauthorizedException):
+        response = format_error_response(exc.status_code, exc.message, request)
+        # Add OAuth2 headers if present
+        if exc.headers:
+            for key, value in exc.headers.items():
+                response.headers[key] = value
+        return response
+
+    @app.exception_handler(BadRequestException)
+    async def bad_request_handler(request: Request, exc: BadRequestException):
         return format_error_response(exc.status_code, exc.message, request)
 
     @app.exception_handler(ValidationException)

@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
 
 from .core.config import settings
 
-DATABASE_URL = settings.database_url
+from datetime import datetime, timezone
+
+DATABASE_URL = settings.DATABASE_URL
 
 # SQLite needs check_same_thread=False
 engine = create_engine(
@@ -12,8 +14,9 @@ engine = create_engine(
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
+class Base(DeclarativeBase):
+    pass
 
 def get_db():
     db = SessionLocal()
@@ -21,3 +24,12 @@ def get_db():
         yield db
     finally:
         db.close()
+
+class CommonModel(Base):
+    __abstract__ = True
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+

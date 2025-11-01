@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from ..models.user import User
+from ..models import User
 from ..exceptions import NotFoundException
 
 

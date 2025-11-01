@@ -13,10 +13,17 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="AI-Powered Cooking Assistant API", version="1.0.0")
 
 # CORS
+if settings.CORS_ALLOW_ORIGINS.strip() == "*":
+    _cors_origins = ["*"]
+    _cors_allow_credentials = False  # Starlette forbids credentials with wildcard origin
+else:
+    _cors_origins = [o.strip() for o in settings.CORS_ALLOW_ORIGINS.split(",") if o.strip()]
+    _cors_allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.CORS_ALLOW_ORIGINS],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

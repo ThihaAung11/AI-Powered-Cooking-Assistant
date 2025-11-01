@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, UploadFile, File
 
 from ..schemas.user import UserProfile, UserUpdate, UserStats, PasswordChange
 from ..services.user_profile_service import (
@@ -8,6 +8,7 @@ from ..services.user_profile_service import (
     change_password,
     delete_user_account
 )
+from ..services.storage_service import storage_service
 from ..deps import CurrentUser, SessionDep
 
 router = APIRouter()
@@ -41,6 +42,7 @@ def update_my_profile(
     - name
     - email (must be unique)
     - username (must be unique)
+    - profile_url (URL to profile picture/avatar)
     
     Only provided fields will be updated.
     """
@@ -49,7 +51,8 @@ def update_my_profile(
         current_user.id,
         name=payload.name,
         email=payload.email,
-        username=payload.username
+        username=payload.username,
+        profile_url=payload.profile_url
     )
     return get_user_profile(db, current_user.id)
 
@@ -89,6 +92,35 @@ def change_my_password(
         new_password=payload.new_password
     )
     return None
+
+
+@router.post("/me/upload-profile-image", response_model=UserProfile)
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    db: SessionDep = None,
+    current_user: CurrentUser = None
+):
+    """
+    Upload a profile image to Supabase Storage.
+    
+    Accepts:
+    - Image types: JPEG, PNG, WebP, GIF
+    - Max size: 5MB
+    
+    Returns:
+    - Updated user profile with new profile_url
+    """
+    # Upload to Supabase Storage
+    profile_url = storage_service.upload_profile_image(file, current_user.id)
+    
+    # Update user profile with new URL
+    update_user_profile(
+        db,
+        current_user.id,
+        profile_url=profile_url
+    )
+    
+    return get_user_profile(db, current_user.id)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

@@ -32,6 +32,7 @@ def get_user_profile(db: Session, user_id: int) -> dict:
         "username": user.username,
         "name": user.name,
         "email": user.email,
+        "profile_url": user.profile_url,
         "is_active": user.is_active,
         "role_id": user.role_id,
         "total_recipes": total_recipes,
@@ -111,7 +112,8 @@ def update_user_profile(
     *,
     name: Optional[str] = None,
     email: Optional[str] = None,
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    profile_url: Optional[str] = None
 ) -> User:
     """Update user profile information"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -143,6 +145,8 @@ def update_user_profile(
         user.email = email
     if username is not None:
         user.username = username
+    if profile_url is not None:
+        user.profile_url = profile_url
     
     db.commit()
     db.refresh(user)

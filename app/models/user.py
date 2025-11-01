@@ -25,6 +25,7 @@ class User(CommonModel):
     name: Mapped[str] = mapped_column()
     email: Mapped[str] = mapped_column(unique=True, index=True)
     password: Mapped[str] = mapped_column()
+    profile_url: Mapped[Optional[str]] = mapped_column()
     is_active: Mapped[bool] = mapped_column(default=True)
     
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="RESTRICT"))

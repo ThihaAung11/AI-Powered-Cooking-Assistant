@@ -22,9 +22,14 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-5-mini"
     OPENAI_TEMPERATURE: float = 0.6
 
+    # Supabase Storage
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_BUCKET: str = "general"
+
     class Config:
         env_file = ".env"
-        allow_extra = True
+        extra = "allow"
         env_file_encoding = "utf-8"
 
 settings = Settings()

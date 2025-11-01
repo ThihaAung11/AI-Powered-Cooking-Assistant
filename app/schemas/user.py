@@ -6,6 +6,7 @@ class UserBase(BaseModel):
     username: str
     name: str
     email: EmailStr
+    profile_url: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -17,6 +18,7 @@ class UserOut(UserBase):
     id: int
     is_active: bool
     role_id: int
+    profile_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -26,6 +28,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     username: Optional[str] = None
+    profile_url: Optional[str] = None
 
     class Config:
         from_attributes = True

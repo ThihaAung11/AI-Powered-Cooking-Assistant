@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..schemas.recipe import RecipeCreate, RecipeUpdate, RecipeOut
+from ..schemas.recipe import RecipeCreate, RecipeUpdate, RecipeOut, RecipeSearchFilter
 from ..utils.pagination import PaginationParams, PaginatedResponse
-from ..services.recipe_service import create_recipe, get_recipe, list_recipes, update_recipe, delete_recipe
+from ..services.recipe_service import create_recipe, get_recipe, list_recipes, search_recipes, update_recipe, delete_recipe
 from ..services.storage_service import storage_service
 from ..core.security import get_current_user
 from ..models import User
@@ -16,6 +16,11 @@ router = APIRouter()
 
 @router.post("/", response_model=RecipeOut)
 def create(payload: RecipeCreate, db: SessionDep, current_user: CurrentUser):
+    """
+    Create a new recipe.
+    
+    Set is_public=True to share with everyone, or is_public=False to keep it private.
+    """
     recipe = create_recipe(
         db,
         title=payload.title,
@@ -25,6 +30,7 @@ def create(payload: RecipeCreate, db: SessionDep, current_user: CurrentUser):
         total_time=payload.total_time,
         ingredients=payload.ingredients,
         image_url=payload.image_url,
+        is_public=payload.is_public,
         steps=payload.steps,
         user_id=current_user.id,
     )
@@ -37,8 +43,56 @@ def list_all(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page")
 ):
+    """
+    List all public recipes with pagination.
+    """
     params = PaginationParams(page=page, page_size=page_size)
     return list_recipes(db, params)
+
+
+@router.get("/search", response_model=PaginatedResponse[RecipeOut])
+def search(
+    db: SessionDep,
+    search: Optional[str] = Query(None, description="Search in title, description, ingredients"),
+    cuisine: Optional[str] = Query(None, description="Filter by cuisine"),
+    difficulty: Optional[str] = Query(None, description="Filter by difficulty (Easy, Medium, Hard)"),
+    min_time: Optional[int] = Query(None, ge=0, description="Minimum cooking time in minutes"),
+    max_time: Optional[int] = Query(None, ge=0, description="Maximum cooking time in minutes"),
+    ingredients: Optional[str] = Query(None, description="Search for specific ingredients"),
+    created_by: Optional[int] = Query(None, description="Filter by creator user ID"),
+    include_private: bool = Query(False, description="Include your private recipes"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(10, ge=1, le=100, description="Items per page"),
+    current_user: Optional[CurrentUser] = None
+):
+    """
+    Search and filter recipes with advanced options.
+    
+    - **search**: Search in title, description, and ingredients
+    - **cuisine**: Filter by cuisine type (e.g., "Italian", "Burmese")
+    - **difficulty**: Filter by difficulty level
+    - **min_time/max_time**: Filter by cooking time range
+    - **ingredients**: Search for specific ingredients
+    - **created_by**: Show recipes from a specific user
+    - **include_private**: Include your own private recipes (requires authentication)
+    
+    Only public recipes are shown by default. Private recipes are only visible to their creators.
+    """
+    filters = RecipeSearchFilter(
+        search=search,
+        cuisine=cuisine,
+        difficulty=difficulty,
+        min_time=min_time,
+        max_time=max_time,
+        ingredients=ingredients,
+        created_by=created_by,
+        include_private=include_private
+    )
+    
+    params = PaginationParams(page=page, page_size=page_size)
+    user_id = current_user.id if current_user else None
+    
+    return search_recipes(db, filters, user_id, params)
 
 
 @router.get("/{recipe_id}", response_model=RecipeOut)

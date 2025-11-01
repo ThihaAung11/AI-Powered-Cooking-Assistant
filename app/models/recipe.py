@@ -9,13 +9,14 @@ class Recipe(CommonModel):
     __tablename__ = "recipes"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    title: Mapped[str] = mapped_column()
+    title: Mapped[str] = mapped_column(index=True)
     description: Mapped[Optional[str]] = mapped_column()
-    cuisine: Mapped[Optional[str]] = mapped_column()
-    difficulty: Mapped[Optional[str]] = mapped_column()
+    cuisine: Mapped[Optional[str]] = mapped_column(index=True)
+    difficulty: Mapped[Optional[str]] = mapped_column(index=True)
     total_time: Mapped[Optional[int]] = mapped_column()  # minutes
     ingredients: Mapped[str] = mapped_column()
     image_url: Mapped[Optional[str]] = mapped_column()
+    is_public: Mapped[bool] = mapped_column(default=True, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
 
     # Relationships

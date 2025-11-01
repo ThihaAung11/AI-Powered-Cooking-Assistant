@@ -96,9 +96,9 @@ def change_my_password(
 
 @router.post("/me/upload-profile-image", response_model=UserProfile)
 async def upload_profile_image(
+    db: SessionDep,
+    current_user: CurrentUser,
     file: UploadFile = File(...),
-    db: SessionDep = None,
-    current_user: CurrentUser = None
 ):
     """
     Upload a profile image to Supabase Storage.

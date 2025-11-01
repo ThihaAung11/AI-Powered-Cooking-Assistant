@@ -1,15 +1,11 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, UploadFile, File
-from sqlalchemy.orm import Session
 
-from ..database import get_db
 from ..schemas.recipe import RecipeCreate, RecipeUpdate, RecipeOut, RecipeSearchFilter
 from ..utils.pagination import PaginationParams, PaginatedResponse
 from ..services.recipe_service import create_recipe, get_recipe, list_recipes, search_recipes, update_recipe, delete_recipe
 from ..services.storage_service import storage_service
-from ..core.security import get_current_user
-from ..models import User
-from ..deps import CurrentUser, SessionDep
+from ..deps import CurrentUser, OptionalCurrentUser, SessionDep
 
 router = APIRouter()
 
@@ -63,7 +59,7 @@ def search(
     include_private: bool = Query(False, description="Include your private recipes"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: Optional[CurrentUser] = None
+    current_user: OptionalCurrentUser = None
 ):
     """
     Search and filter recipes with advanced options.
@@ -120,9 +116,9 @@ def update(recipe_id: int, payload: RecipeUpdate, db: SessionDep, current_user: 
 @router.post("/{recipe_id}/upload-image", response_model=RecipeOut)
 async def upload_recipe_image(
     recipe_id: int,
+    db: SessionDep,
+    current_user: CurrentUser,
     file: UploadFile = File(...),
-    db: SessionDep = None,
-    current_user: CurrentUser = None
 ):
     """
     Upload an image for a recipe.
@@ -156,9 +152,9 @@ async def upload_recipe_image(
 async def upload_step_media(
     recipe_id: int,
     step_number: int,
+    db: SessionDep,
+    current_user: CurrentUser,
     file: UploadFile = File(...),
-    db: SessionDep = None,
-    current_user: CurrentUser = None
 ):
     """
     Upload media (image/video) for a cooking step.
@@ -199,6 +195,6 @@ async def upload_step_media(
 
 
 @router.delete("/{recipe_id}")
-def delete(recipe_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete(recipe_id: int, db: SessionDep, current_user: CurrentUser):
     delete_recipe(db, recipe_id, user_id=current_user.id)
     return {"detail": "Deleted"}

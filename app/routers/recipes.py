@@ -49,6 +49,7 @@ def list_all(
 @router.get("/search", response_model=PaginatedResponse[RecipeOut])
 def search(
     db: SessionDep,
+    # current_user: OptionalCurrentUser,
     search: Optional[str] = Query(None, description="Search in title, description, ingredients"),
     cuisine: Optional[str] = Query(None, description="Filter by cuisine"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (Easy, Medium, Hard)"),
@@ -59,7 +60,6 @@ def search(
     include_private: bool = Query(False, description="Include your private recipes"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: OptionalCurrentUser = None
 ):
     """
     Search and filter recipes with advanced options.
@@ -86,7 +86,8 @@ def search(
     )
     
     params = PaginationParams(page=page, page_size=page_size)
-    user_id = current_user.id if current_user else None
+    # user_id = current_user.id if current_user else None
+    user_id = None
     
     return search_recipes(db, filters, user_id, params)
 

@@ -83,23 +83,34 @@ def node_analyze_intent(state: dict) -> dict:
     """Analyze user intent to determine what type of response is needed"""
     user_input = state["user_input"].lower()
     
-    # Detect intent
+    # Detect greetings
+    is_greeting = any(word in user_input for word in [
+        "hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"
+    ]) and len(user_input.split()) <= 5
+    
+    # Detect specific intents
     needs_image_search = any(word in user_input for word in [
         "show", "image", "picture", "photo", "video", "how does", "what does", "look like"
     ])
     
     needs_health_info = any(word in user_input for word in [
         "health", "nutrition", "calorie", "vitamin", "protein", "carb", "fat",
-        "benefit", "nutrient", "healthy", "diet", "allergy", "allergic"
+        "benefit", "nutrient", "healthy", "diet plan", "meal plan"
     ])
     
     needs_recipe = any(word in user_input for word in [
-        "recipe", "cook", "make", "prepare", "ingredient", "step"
+        "recipe", "recommend", "suggest", "what should i cook", "what can i make"
     ])
     
+    needs_cooking_guide = any(word in user_input for word in [
+        "how to cook", "guide me", "step", "cooking guide", "start cooking", "help me cook"
+    ])
+    
+    state["is_greeting"] = is_greeting
     state["needs_image_search"] = needs_image_search
     state["needs_health_info"] = needs_health_info
     state["needs_recipe"] = needs_recipe
+    state["needs_cooking_guide"] = needs_cooking_guide
     
     return state
 
@@ -169,55 +180,106 @@ Be specific and evidence-based.
     return state
 
 
+def node_greeting_response(state: dict) -> dict:
+    """Handle greetings with a brief, helpful response"""
+    context = state["user_context"]
+    language = state.get("language", "en")
+    
+    if language == "my":
+        greeting = f"""မင်္ဂလာပါ {context['name']}! 
+
+ကျွန်ုပ်သည် ချက်ပြုတ်ရေးအကူအညီပေးသော AI ဖြစ်ပါသည်။ အောက်ပါအရာများကို ကူညီပေးနိုင်ပါတယ်:
+
+• **ကျန်းမာရေးနှင့် အာဟာရ** - အာဟာရဆိုင်ရာ အကြံဉာဏ်များ
+• **စားသောက်ကုန်အစီအစဉ်** - နေ့စဉ်/အပတ်စဉ် အစီအစဉ်များ
+• **ချက်နည်းများ အကြံပြုချက်** - သင့်အတွက် သင့်လျော်သော ချက်နည်းများ
+• **ချက်ပြုတ်ခြင်း အကူအညီ** - အဆင့်ဆင့် လမ်းညွှန်ချက်များ
+
+ဘာကူညီပေးရမလဲ ပြောပြပါ! 😊"""
+    else:
+        greeting = f"""Hello {context['name']}! 👋
+
+I'm your cooking assistant. I can help you with:
+
+• **Health & Nutrition** - Nutritional advice and dietary guidance
+• **Meal Planning** - Daily or weekly meal plans
+• **Recipe Recommendations** - Personalized recipe suggestions
+• **Cooking Guidance** - Step-by-step cooking instructions
+
+What would you like to do today?"""
+    
+    state["ai_reply"] = greeting
+    return state
+
+
+def node_simple_response(state: dict) -> dict:
+    """Provide a simple conversational response for general queries"""
+    user_input = state["user_input"]
+    context = state["user_context"]
+    language = state.get("language", "en")
+    
+    llm = get_llm()
+    
+    if language == "my":
+        system_msg = """သင်သည် ချက်ပြုတ်ရေးအကူအညီပေးသော AI ဖြစ်သည်။ 
+တိုတောင်းပြီး အသုံးဝင်သော အဖြေများပေးပါ။ အသုံးပြုသူက တိတိကျကျ မတောင်းဆိုပါက အလိုအလျောက် လုပ်ဆောင်မပေးပါနဲ့။"""
+        prompt = f"""အသုံးပြုသူက: "{user_input}"
+
+တိုတောင်းစွာ ဖြေကြားပြီး ဆက်လုပ်ဆောင်ရန် မေးမြန်းပါ။ (၂-၃ စာကြောင်း)"""
+    else:
+        system_msg = """You are a friendly cooking assistant. Keep responses brief (2-3 sentences) unless user asks for details. 
+Never perform actions automatically - always ask first. Focus on being helpful and conversational."""
+        prompt = f"""User said: "{user_input}"
+
+User preferences: {context['diet']} diet, {context['spice_level']} spice, likes {context['cuisine']} cuisine.
+
+Provide a brief, helpful response (2-3 sentences max). Ask what they'd like to do next."""
+    
+    messages = [
+        SystemMessage(content=system_msg),
+        HumanMessage(content=prompt)
+    ]
+    
+    result = llm.invoke(messages)
+    state["ai_reply"] = result.content
+    return state
+
+
 def node_recommend_recipe(state: dict) -> dict:
     """Use LLM to recommend a recipe based on user input"""
-    recipes = state["recipes"]
+    recipes = state.get("recipes", [])
     context = state["user_context"]
     user_input = state["user_input"]
     language = state.get("language", "english")
     health_info = state.get("health_info")
-    media_results = state.get("media_results", [])
     
     llm = get_llm()
     
     if language == "burmese":
-        system_msg = """သင်သည် ချက်ပြုတ်ရေးအကူအညီပေးသော AI လုပ်ဆောင်ချက်ဖြစ်သည်။ 
-ကျန်းမာရေး၊ အာဟာရ၊ နှင့် ချက်ပြုတ်နည်းများကို ကျွမ်းကျင်စွာ ရှင်းပြနိုင်သည်။"""
-        lang_instruction = "Please respond in Burmese (Myanmar) language."
+        system_msg = """သင်သည် ချက်ပြုတ်ရေးအကူအညီပေးသော AI ဖြစ်သည်။ တိုတောင်းပြီး အသုံးဝင်သော ချက်နည်းများကို အကြံပြုပါ။"""
+        lang_instruction = "မြန်မာဘာသာဖြင့် ဖြေကြားပါ။"
     else:
-        system_msg = """You are a friendly cooking assistant AI with expertise in:
-- Recipe recommendations and cooking guidance
-- Health and nutrition information
-- Food safety and dietary considerations
-- Visual cooking demonstrations
-
-Provide helpful, accurate, and engaging responses."""
-        lang_instruction = "Please respond in English."
+        system_msg = """You are a friendly cooking assistant. Recommend 2-3 recipes briefly. Keep it concise."""
+        lang_instruction = "Respond in English."
 
     recipe_text = "\n".join([
         f"- Recipe ID {r['id']}: {r['title']} ({r['cuisine']}, {r['difficulty']}, {r['total_time']} mins)"
-        for r in recipes
-    ]) if recipes else "No recipes available."
+        for r in recipes[:5]  # Limit to 5 recipes
+    ]) if recipes else "No recipes available matching your preferences."
     
-    # Build comprehensive prompt
-    prompt_parts = [lang_instruction, f"\nThe user asked: \"{user_input}\""]
-    
-    prompt_parts.append(f"""\nUser preferences:
-- Diet: {context['diet']}
-- Spice level: {context['spice_level']}
-- Preferred cuisine: {context['cuisine']}""")
+    prompt = f"""{lang_instruction}
+
+User asked: "{user_input}"
+
+User preferences: {context['diet']} diet, {context['spice_level']} spice, likes {context['cuisine']} cuisine.
+
+Available recipes:
+{recipe_text}
+
+Recommend 2-3 recipes briefly. Ask if they want cooking guidance for any recipe."""
     
     if health_info:
-        prompt_parts.append(f"\n\nHealth & Nutrition Information:\n{health_info}")
-    
-    if media_results:
-        media_text = "\n".join([f"- {m['suggestion']}" for m in media_results])
-        prompt_parts.append(f"\n\nVisual Resources:\n{media_text}")
-    
-    prompt_parts.append(f"\n\nAvailable recipes:\n{recipe_text}")
-    prompt_parts.append("\n\nProvide a helpful response and ask what they want to do next.")
-    
-    prompt = "".join(prompt_parts)
+        prompt += f"\n\nHealth info:\n{health_info}"
     
     messages = [
         SystemMessage(content=system_msg),
@@ -230,22 +292,23 @@ Provide helpful, accurate, and engaging responses."""
 
 
 def node_cooking_guide(state: dict, db: Session) -> dict:
-    """Provide step-by-step cooking guidance"""
-    reply = state.get("ai_reply", "")
+    """Provide step-by-step cooking guidance only when explicitly requested"""
+    user_input = state["user_input"].lower()
     language = state.get("language", "en")
     
-    match = re.search(r"[Rr]ecipe\s*ID[:\s]*(\d+)", reply)
+    # Extract recipe ID from user input if mentioned
+    match = re.search(r"[Rr]ecipe\s*ID[:\s]*(\d+)", user_input)
     recipe_id = int(match.group(1)) if match else None
 
     recipe = None
     if recipe_id:
         recipe = db.query(Recipe).filter_by(id=recipe_id).first()
-
-    if not recipe:
-        recipe = db.query(Recipe).first()
     
     if not recipe:
-        state["ai_reply"] += "\n\nNo recipes available in the database yet."
+        if language == "my":
+            state["ai_reply"] = "ချက်နည်း ID ကို ပြောပြပေးပါ။ ဥပမာ: 'Recipe ID 5 ကို ချက်ပြုတ်ပေးပါ'"
+        else:
+            state["ai_reply"] = "Please specify which recipe you'd like to cook. Say 'Recipe ID [number]' or ask me to recommend recipes first."
         return state
 
     steps = (
@@ -263,53 +326,83 @@ def node_cooking_guide(state: dict, db: Session) -> dict:
     llm = get_llm()
     
     if language == "my":
-        guide_prompt = f"""မြန်မာဘာသာဖြင့် ပြန်ကြားပါ။
+        guide_prompt = f"""မြန်မာဘာသာဖြင့် တိုတောင်းစွာ ပြန်ကြားပါ။
 
-အသုံးပြုသူသည် "{recipe.title}" ကို ချက်ပြုတ်နေပါသည်။
-
-ချက်ပြုတ်နည်းများ:
+"{recipe.title}" ချက်ပြုတ်နည်း:
 {step_text}
 
-ပထမအဆင့်များကို ရှင်းပြပါ။
-"""
+စတင်ရန် ပထမ ၂-၃ အဆင့်ကို ရှင်းပြပြီး 'ဆက်လုပ်မလား' ဟု မေးပါ။"""
     else:
-        guide_prompt = f"""The user is cooking "{recipe.title}".
+        guide_prompt = f"""Recipe: "{recipe.title}"
 
-Cooking steps:
+Steps:
 {step_text}
 
-Explain the first few steps in a friendly way.
-"""
+Briefly explain the first 2-3 steps to get started. Then ask if they're ready to continue. Keep it short."""
     
     guide = llm.invoke([HumanMessage(content=guide_prompt)])
     
-    state["ai_reply"] += "\n\n" + guide.content
+    state["ai_reply"] = guide.content
     state["cooking_recipe"] = recipe.title
     return state
 
 
+def route_after_intent(state: dict) -> str:
+    """Route to appropriate node based on detected intent"""
+    if state.get("is_greeting"):
+        return "greeting_response"
+    elif state.get("needs_cooking_guide"):
+        return "cooking_guide"
+    elif state.get("needs_recipe"):
+        return "recipe_list"
+    elif state.get("needs_health_info"):
+        return "health_nutrition"
+    else:
+        return "simple_response"
+
+
 def build_cooking_chat_graph(db: Session):
-    """Build and compile the LangGraph workflow with enhanced capabilities"""
+    """Build and compile the LangGraph workflow with conditional routing"""
     workflow = StateGraph(dict)
     
     # Add all nodes
     workflow.add_node("user_context", lambda s: node_user_context(s, db))
     workflow.add_node("analyze_intent", node_analyze_intent)
-    workflow.add_node("search_images", node_search_images)
+    workflow.add_node("greeting_response", node_greeting_response)
+    workflow.add_node("simple_response", node_simple_response)
     workflow.add_node("health_nutrition", node_health_nutrition)
     workflow.add_node("recipe_list", lambda s: node_recipe_list(s, db))
     workflow.add_node("recommend_recipe", node_recommend_recipe)
     workflow.add_node("cooking_guide", lambda s: node_cooking_guide(s, db))
 
-    # Set up workflow
+    # Set up workflow with conditional routing
     workflow.set_entry_point("user_context")
     workflow.add_edge("user_context", "analyze_intent")
-    workflow.add_edge("analyze_intent", "search_images")
-    workflow.add_edge("search_images", "health_nutrition")
-    workflow.add_edge("health_nutrition", "recipe_list")
-    workflow.add_edge("recipe_list", "recommend_recipe")
-    workflow.add_edge("recommend_recipe", "cooking_guide")
+    
+    # Conditional routing based on intent
+    workflow.add_conditional_edges(
+        "analyze_intent",
+        route_after_intent,
+        {
+            "greeting_response": "greeting_response",
+            "simple_response": "simple_response",
+            "health_nutrition": "health_nutrition",
+            "recipe_list": "recipe_list",
+            "cooking_guide": "cooking_guide"
+        }
+    )
+    
+    # End paths
+    workflow.add_edge("greeting_response", END)
+    workflow.add_edge("simple_response", END)
     workflow.add_edge("cooking_guide", END)
+    
+    # Health info flows to simple response
+    workflow.add_edge("health_nutrition", "simple_response")
+    
+    # Recipe flow: list -> recommend -> end
+    workflow.add_edge("recipe_list", "recommend_recipe")
+    workflow.add_edge("recommend_recipe", END)
     
     return workflow.compile()
 
@@ -317,7 +410,7 @@ def build_cooking_chat_graph(db: Session):
 def chat_with_cooking_assistant(user_id: int, user_message: str, db: Session) -> dict:
     """
     Orchestrates LangGraph flow and stores chat message in DB.
-    Enhanced with health/nutrition info and media search capabilities.
+    Uses conditional routing to provide brief, targeted responses.
     """
     try:
         graph = build_cooking_chat_graph(db)
@@ -329,7 +422,6 @@ def chat_with_cooking_assistant(user_id: int, user_message: str, db: Session) ->
         ai_reply = result.get("ai_reply", "I'm sorry, I couldn't process your request.")
         cooking_recipe = result.get("cooking_recipe")
         health_info = result.get("health_info")
-        media_results = result.get("media_results", [])
 
         msg = Message(
             user_id=user_id,
@@ -343,17 +435,14 @@ def chat_with_cooking_assistant(user_id: int, user_message: str, db: Session) ->
         response = {
             "message_id": msg.id,
             "ai_reply": ai_reply,
-            "cooking_recipe": cooking_recipe,
             "language": result.get("language", "en")
         }
         
-        # Add health info if available
+        # Add optional fields
+        if cooking_recipe:
+            response["cooking_recipe"] = cooking_recipe
         if health_info:
             response["health_nutrition"] = health_info
-        
-        # Add media suggestions if available
-        if media_results:
-            response["media_suggestions"] = media_results
         
         return response
     

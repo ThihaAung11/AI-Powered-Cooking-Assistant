@@ -5,6 +5,8 @@ from .role import Role
 from .user_feedback import UserFeedback
 from .user_saved_recipe import UserSavedRecipe
 from .user_cooking_session import UserCookingSession
+from .recipe_collection import RecipeCollection, CollectionItem
+from .shopping_list import ShoppingList, ShoppingListItem
 
 __all__ = [
     "User",
@@ -18,4 +20,8 @@ __all__ = [
     "UserFeedback",
     "UserSavedRecipe",
     "UserCookingSession",
+    "RecipeCollection",
+    "CollectionItem",
+    "ShoppingList",
+    "ShoppingListItem",
 ]

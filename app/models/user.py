@@ -38,6 +38,8 @@ class User(CommonModel):
     feedbacks: Mapped[list["UserFeedback"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     saved_recipes: Mapped[list["UserSavedRecipe"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     cooking_sessions: Mapped[list["UserCookingSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    collections: Mapped[list["RecipeCollection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    shopping_lists: Mapped[list["ShoppingList"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class UserPreference(CommonModel):

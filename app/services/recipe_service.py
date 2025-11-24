@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from typing import List, Optional
 
@@ -52,7 +52,7 @@ def create_recipe(
 
 
 def get_recipe(db: Session, recipe_id: int) -> Recipe:
-    recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+    recipe = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.id == recipe_id).first()
     if not recipe:
         raise NotFoundException("Recipe not found")
     return recipe
@@ -60,7 +60,7 @@ def get_recipe(db: Session, recipe_id: int) -> Recipe:
 
 def list_recipes(db: Session, params: Optional[PaginationParams] = None) -> PaginatedResponse[RecipeOut]:
     """List public recipes with pagination"""
-    query = db.query(Recipe).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
+    query = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
     
     if params is None:
         params = PaginationParams()
@@ -75,7 +75,7 @@ def search_recipes(
     params: Optional[PaginationParams] = None
 ) -> PaginatedResponse[RecipeOut]:
     """Search and filter recipes with advanced options"""
-    query = db.query(Recipe)
+    query = db.query(Recipe).options(joinedload(Recipe.creator))
     
     # Public visibility filter
     if filters.include_private and current_user_id:

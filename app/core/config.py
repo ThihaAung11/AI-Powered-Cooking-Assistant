@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     CORS_ALLOW_ORIGINS: str = "*"
 
     OPENAI_API_KEY: str
-    OPENAI_MODEL: str = "gpt-5-mini"
-    OPENAI_TEMPERATURE: float = 0.6
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_TEMPERATURE: float = 0.7
 
     # Supabase Storage
     SUPABASE_URL: str

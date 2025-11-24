@@ -77,3 +77,26 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     if not current_user.is_active:
         raise UnauthorizedException("Inactive user")
     return current_user
+
+
+def get_admin_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+    """
+    Dependency to ensure the current user is an admin.
+    Requires the user to have the 'admin' role.
+    """
+    if not current_user.is_active:
+        raise UnauthorizedException("Inactive user")
+    
+    # Load the role relationship if not already loaded
+    if not hasattr(current_user, 'role') or current_user.role is None:
+        user = db.query(User).filter(User.id == current_user.id).first()
+        if user and user.role:
+            current_user = user
+    
+    if not current_user.role or current_user.role.name.lower() != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Admin access required."
+        )
+    
+    return current_user

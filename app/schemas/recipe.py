@@ -62,6 +62,17 @@ class RecipeUpdate(BaseModel):
     steps: Optional[List[CookingStepCreate]] = None
 
 
+class CreatorInfo(BaseModel):
+    """Creator/User information for recipes"""
+    id: int
+    username: str
+    name: str
+    profile_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class RecipeOut(RecipeBase):
     id: int
     created_by: int
@@ -69,6 +80,7 @@ class RecipeOut(RecipeBase):
     steps: List[CookingStepOut] = []
     created_at: datetime
     updated_at: datetime
+    creator: Optional[CreatorInfo] = None  # Creator information
 
     class Config:
         from_attributes = True

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .middleware import LoggingMiddleware, error_handling_middleware
 from .exceptions import register_exception_handlers
-from .routers import auth, recipes, chat, feedbacks, cooking_sessions, saved_recipes, recommendations, user_preferences, users, collections, shopping_lists
+from .routers import auth, recipes, chat, feedbacks, cooking_sessions, saved_recipes, recommendations, user_preferences, users, collections, shopping_lists, admin
 from .database import Base, engine
 from .core.config import settings
 
@@ -49,6 +49,7 @@ app.include_router(recommendations.router, prefix="/recommendations", tags=["rec
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(collections.router, prefix="/collections", tags=["collections"])
 app.include_router(shopping_lists.router, prefix="/shopping-lists", tags=["shopping-lists"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/health")

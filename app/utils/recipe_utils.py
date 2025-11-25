@@ -57,11 +57,27 @@ def enrich_recipes_with_saved_status(
     # Create enriched recipes
     enriched_recipes = []
     for recipe in recipes:
-        recipe_dict = recipe.__dict__.copy()
-        recipe_dict['is_saved'] = recipe.id in user_saved_recipes if user_id else None
-        recipe_dict['save_count'] = save_counts.get(recipe.id, 0)
+        # Convert recipe to dict properly including relationships
+        recipe_data = {
+            'id': recipe.id,
+            'title': recipe.title,
+            'description': recipe.description,
+            'cuisine': recipe.cuisine,
+            'difficulty': recipe.difficulty,
+            'total_time': recipe.total_time,
+            'ingredients': recipe.ingredients,
+            'image_url': recipe.image_url,
+            'is_public': recipe.is_public,
+            'created_by': recipe.created_by,
+            'created_at': recipe.created_at,
+            'updated_at': recipe.updated_at,
+            'steps': recipe.steps,
+            'creator': recipe.creator,
+            'is_saved': recipe.id in user_saved_recipes if user_id else None,
+            'save_count': save_counts.get(recipe.id, 0)
+        }
         
-        enriched_recipes.append(RecipeOut.model_validate(recipe_dict))
+        enriched_recipes.append(RecipeOut.model_validate(recipe_data))
     
     return enriched_recipes
 
@@ -86,12 +102,27 @@ def _enrich_single_recipe(
             UserSavedRecipe.recipe_id == recipe.id
         ).first() is not None
     
-    # Create enriched recipe
-    recipe_dict = recipe.__dict__.copy()
-    recipe_dict['is_saved'] = is_saved
-    recipe_dict['save_count'] = save_count
+    # Create enriched recipe with all data including relationships
+    recipe_data = {
+        'id': recipe.id,
+        'title': recipe.title,
+        'description': recipe.description,
+        'cuisine': recipe.cuisine,
+        'difficulty': recipe.difficulty,
+        'total_time': recipe.total_time,
+        'ingredients': recipe.ingredients,
+        'image_url': recipe.image_url,
+        'is_public': recipe.is_public,
+        'created_by': recipe.created_by,
+        'created_at': recipe.created_at,
+        'updated_at': recipe.updated_at,
+        'steps': recipe.steps,
+        'creator': recipe.creator,
+        'is_saved': is_saved,
+        'save_count': save_count
+    }
     
-    return RecipeOut.model_validate(recipe_dict)
+    return RecipeOut.model_validate(recipe_data)
 
 
 def check_recipes_saved_status(

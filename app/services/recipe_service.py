@@ -53,7 +53,10 @@ def create_recipe(
 
 
 def get_recipe(db: Session, recipe_id: int) -> Recipe:
-    recipe = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.id == recipe_id).first()
+    recipe = db.query(Recipe).options(
+        joinedload(Recipe.creator),
+        joinedload(Recipe.steps)
+    ).filter(Recipe.id == recipe_id).first()
     if not recipe:
         raise NotFoundException("Recipe not found")
     return recipe
@@ -81,7 +84,10 @@ def list_enriched_recipes(
     user_id: Optional[int] = None
 ) -> PaginatedResponse[RecipeOut]:
     """List public recipes with saved status and save count"""
-    query = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
+    query = db.query(Recipe).options(
+        joinedload(Recipe.creator),
+        joinedload(Recipe.steps)
+    ).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
     
     if params is None:
         params = PaginationParams()
@@ -98,7 +104,9 @@ def list_enriched_recipes(
         page=recipes_page.page,
         page_size=recipes_page.page_size,
         total=recipes_page.total,
-        has_more=recipes_page.has_more
+        total_pages=recipes_page.total_pages,
+        has_next=recipes_page.has_next,
+        has_prev=recipes_page.has_prev
     )
 
 
@@ -175,7 +183,10 @@ def search_enriched_recipes(
     params: Optional[PaginationParams] = None
 ) -> PaginatedResponse[RecipeOut]:
     """Search and filter recipes with advanced options, including saved status"""
-    query = db.query(Recipe).options(joinedload(Recipe.creator))
+    query = db.query(Recipe).options(
+        joinedload(Recipe.creator),
+        joinedload(Recipe.steps)
+    )
     
     # Public visibility filter
     if filters.include_private and current_user_id:
@@ -243,7 +254,9 @@ def search_enriched_recipes(
         page=recipes_page.page,
         page_size=recipes_page.page_size,
         total=recipes_page.total,
-        has_more=recipes_page.has_more
+        total_pages=recipes_page.total_pages,
+        has_next=recipes_page.has_next,
+        has_prev=recipes_page.has_prev
     )
 
 

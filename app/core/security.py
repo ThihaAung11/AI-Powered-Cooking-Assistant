@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -77,6 +78,39 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     if not current_user.is_active:
         raise UnauthorizedException("Inactive user")
     return current_user
+
+
+def get_optional_current_user(
+    request: Request,
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Dependency to get the current user from JWT token, or None if not authenticated.
+    This doesn't require authentication and returns None if no token is provided.
+    """
+    # Extract token from Authorization header
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        return None
+        
+    scheme, token = get_authorization_scheme_param(authorization)
+    if scheme.lower() != "bearer" or not token:
+        return None
+        
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: Optional[int] = payload.get("user_id")
+        
+        if user_id is None:
+            return None
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None or not user.is_active:
+            return None
+            
+        return user
+    except JWTError:
+        return None
 
 
 def get_admin_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:

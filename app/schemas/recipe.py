@@ -81,6 +81,8 @@ class RecipeOut(RecipeBase):
     created_at: datetime
     updated_at: datetime
     creator: Optional[CreatorInfo] = None  # Creator information
+    is_saved: Optional[bool] = None  # Whether recipe is saved by current user
+    save_count: Optional[int] = None  # Number of times recipe has been saved
 
     class Config:
         from_attributes = True

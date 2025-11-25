@@ -4,7 +4,12 @@ from pydantic import BaseModel
 
 from ..schemas.recipe import RecipeCreate, RecipeUpdate, RecipeOut, RecipeSearchFilter
 from ..utils.pagination import PaginationParams, PaginatedResponse
-from ..services.recipe_service import create_recipe, get_recipe, list_recipes, search_recipes, update_recipe, delete_recipe
+from ..services.recipe_service import (
+    create_recipe, get_recipe, get_enriched_recipe, 
+    list_recipes, list_enriched_recipes,
+    search_recipes, search_enriched_recipes, 
+    update_recipe, delete_recipe
+)
 from ..services.storage_service import storage_service
 from ..deps import CurrentUser, OptionalCurrentUser, SessionDep
 
@@ -264,20 +269,23 @@ def create(payload: RecipeCreate, db: SessionDep, current_user: CurrentUser):
 @router.get("/", response_model=PaginatedResponse[RecipeOut])
 def list_all(
     db: SessionDep,
+    current_user: OptionalCurrentUser,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page")
 ):
     """
     List all public recipes with pagination.
+    Includes saved status and save count for each recipe.
     """
     params = PaginationParams(page=page, page_size=page_size)
-    return list_recipes(db, params)
+    user_id = current_user.id if current_user else None
+    return list_enriched_recipes(db, params, user_id)
 
 
 @router.get("/search", response_model=PaginatedResponse[RecipeOut])
 def search(
     db: SessionDep,
-    # current_user: OptionalCurrentUser,
+    current_user: OptionalCurrentUser,
     search: Optional[str] = Query(None, description="Search in title, description, ingredients"),
     cuisine: Optional[str] = Query(None, description="Filter by cuisine"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty (Easy, Medium, Hard)"),
@@ -291,6 +299,7 @@ def search(
 ):
     """
     Search and filter recipes with advanced options.
+    Includes saved status and save count for each recipe.
     
     - **search**: Search in title, description, and ingredients
     - **cuisine**: Filter by cuisine type (e.g., "Italian", "Burmese")
@@ -314,15 +323,19 @@ def search(
     )
     
     params = PaginationParams(page=page, page_size=page_size)
-    # user_id = current_user.id if current_user else None
-    user_id = None
+    user_id = current_user.id if current_user else None
     
-    return search_recipes(db, filters, user_id, params)
+    return search_enriched_recipes(db, filters, user_id, params)
 
 
 @router.get("/{recipe_id}", response_model=RecipeOut)
-def get_one(recipe_id: int, db: SessionDep):
-    return get_recipe(db, recipe_id)
+def get_one(recipe_id: int, db: SessionDep, current_user: OptionalCurrentUser):
+    """
+    Get a specific recipe by ID.
+    Includes saved status and save count.
+    """
+    user_id = current_user.id if current_user else None
+    return get_enriched_recipe(db, recipe_id, user_id)
 
 
 @router.put("/{recipe_id}", response_model=RecipeOut)

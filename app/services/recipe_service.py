@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..models.recipe import Recipe, CookingStep
 from ..schemas.recipe import CookingStepCreate, RecipeOut, RecipeSearchFilter
 from ..utils.pagination import PaginationParams, PaginatedResponse, paginate
+from ..utils.recipe_utils import enrich_recipes_with_saved_status
 from ..exceptions import NotFoundException, UnauthorizedException
 
 
@@ -58,6 +59,12 @@ def get_recipe(db: Session, recipe_id: int) -> Recipe:
     return recipe
 
 
+def get_enriched_recipe(db: Session, recipe_id: int, user_id: Optional[int] = None) -> RecipeOut:
+    """Get a recipe with saved status and save count information"""
+    recipe = get_recipe(db, recipe_id)
+    return enrich_recipes_with_saved_status(db, recipe, user_id)
+
+
 def list_recipes(db: Session, params: Optional[PaginationParams] = None) -> PaginatedResponse[RecipeOut]:
     """List public recipes with pagination"""
     query = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
@@ -66,6 +73,33 @@ def list_recipes(db: Session, params: Optional[PaginationParams] = None) -> Pagi
         params = PaginationParams()
     
     return paginate(query, params, RecipeOut)
+
+
+def list_enriched_recipes(
+    db: Session, 
+    params: Optional[PaginationParams] = None,
+    user_id: Optional[int] = None
+) -> PaginatedResponse[RecipeOut]:
+    """List public recipes with saved status and save count"""
+    query = db.query(Recipe).options(joinedload(Recipe.creator)).filter(Recipe.is_public == True).order_by(Recipe.created_at.desc())
+    
+    if params is None:
+        params = PaginationParams()
+    
+    # Get paginated recipes without enrichment first
+    recipes_page = paginate(query, params, Recipe)
+    
+    # Enrich the recipes with saved status
+    enriched_items = enrich_recipes_with_saved_status(db, recipes_page.items, user_id)
+    
+    # Return paginated response with enriched items
+    return PaginatedResponse(
+        items=enriched_items,
+        page=recipes_page.page,
+        page_size=recipes_page.page_size,
+        total=recipes_page.total,
+        has_more=recipes_page.has_more
+    )
 
 
 def search_recipes(
@@ -132,6 +166,85 @@ def search_recipes(
         params = PaginationParams()
     
     return paginate(query, params, RecipeOut)
+
+
+def search_enriched_recipes(
+    db: Session,
+    filters: RecipeSearchFilter,
+    current_user_id: Optional[int] = None,
+    params: Optional[PaginationParams] = None
+) -> PaginatedResponse[RecipeOut]:
+    """Search and filter recipes with advanced options, including saved status"""
+    query = db.query(Recipe).options(joinedload(Recipe.creator))
+    
+    # Public visibility filter
+    if filters.include_private and current_user_id:
+        # Show public recipes + user's own private recipes
+        query = query.filter(
+            or_(
+                Recipe.is_public == True,
+                and_(Recipe.is_public == False, Recipe.created_by == current_user_id)
+            )
+        )
+    else:
+        # Only show public recipes
+        query = query.filter(Recipe.is_public == True)
+    
+    # Search in title, description, and ingredients
+    if filters.search:
+        search_term = f"%{filters.search}%"
+        query = query.filter(
+            or_(
+                Recipe.title.ilike(search_term),
+                Recipe.description.ilike(search_term),
+                Recipe.ingredients.ilike(search_term)
+            )
+        )
+    
+    # Filter by cuisine
+    if filters.cuisine:
+        query = query.filter(Recipe.cuisine.ilike(f"%{filters.cuisine}%"))
+    
+    # Filter by difficulty
+    if filters.difficulty:
+        query = query.filter(Recipe.difficulty.ilike(f"%{filters.difficulty}%"))
+    
+    # Filter by cooking time range
+    if filters.min_time is not None:
+        query = query.filter(Recipe.total_time >= filters.min_time)
+    
+    if filters.max_time is not None:
+        query = query.filter(Recipe.total_time <= filters.max_time)
+    
+    # Filter by specific ingredients
+    if filters.ingredients:
+        ingredient_term = f"%{filters.ingredients}%"
+        query = query.filter(Recipe.ingredients.ilike(ingredient_term))
+    
+    # Filter by creator
+    if filters.created_by:
+        query = query.filter(Recipe.created_by == filters.created_by)
+    
+    # Order by most recent
+    query = query.order_by(Recipe.created_at.desc())
+    
+    if params is None:
+        params = PaginationParams()
+    
+    # Get paginated recipes without enrichment first
+    recipes_page = paginate(query, params, Recipe)
+    
+    # Enrich the recipes with saved status
+    enriched_items = enrich_recipes_with_saved_status(db, recipes_page.items, current_user_id)
+    
+    # Return paginated response with enriched items
+    return PaginatedResponse(
+        items=enriched_items,
+        page=recipes_page.page,
+        page_size=recipes_page.page_size,
+        total=recipes_page.total,
+        has_more=recipes_page.has_more
+    )
 
 
 def update_recipe(db: Session, recipe_id: int, *, user_id: int, **updates) -> Recipe:

@@ -35,6 +35,7 @@ def get_user_profile(db: Session, user_id: int) -> dict:
         "profile_url": user.profile_url,
         "is_active": user.is_active,
         "role_id": user.role_id,
+        "is_admin": user.is_admin,
         "total_recipes": total_recipes,
         "total_saved_recipes": total_saved,
         "total_cooking_sessions": total_sessions,

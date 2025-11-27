@@ -18,6 +18,7 @@ class UserOut(UserBase):
     id: int
     is_active: bool
     role_id: int
+    is_admin: bool
     profile_url: Optional[str] = None
 
     class Config:

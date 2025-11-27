@@ -13,6 +13,7 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
     username: Optional[str] = None
+    is_admin: Optional[bool] = None
 
 
 class LoginRequest(BaseModel):

@@ -54,7 +54,7 @@ def authenticate_user(db: Session, user_data: str, password: str) -> Token:
         raise UnauthorizedException("Account is inactive")
 
     access_token = create_access_token(
-        {"sub": user.email, "user_id": user.id, "username": user.username},
+        {"sub": user.email, "user_id": user.id, "username": user.username, "is_admin": user.is_admin},
         timedelta(minutes=60)
     )
     return Token(access_token=access_token)

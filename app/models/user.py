@@ -41,6 +41,11 @@ class User(CommonModel):
     collections: Mapped[list["RecipeCollection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     shopping_lists: Mapped[list["ShoppingList"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def is_admin(self) -> bool:
+        """Check if user is an admin (role_id == 2)"""
+        return self.role_id == 2
+
 
 class UserPreference(CommonModel):
     __tablename__ = "user_preferences"

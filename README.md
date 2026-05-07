@@ -31,7 +31,7 @@ cp .env.example .env
 uv run uvicorn app.main:app --reload
 ```
 
-### 4. Access the API
+### 4. Access the API - DEV
 - **API Docs**: http://127.0.0.1:8000/docs
 - **Health Check**: http://127.0.0.1:8000/health
 
